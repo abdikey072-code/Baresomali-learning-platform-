@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="so">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bare Somali Platform - LMS</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- App Header -->
+    <header class="bg-emerald-700 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <span class="text-2xl font-bold">📚 Bare Somali Platform</span>
+            </div>
+            <div id="user-nav" class="hidden flex items-center space-x-4">
+                <span id="user-display-email" class="text-sm bg-emerald-800 px-3 py-1 rounded-full"></span>
+                <button id="logout-btn" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition">Ka bax</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6">
+
+        <!-- AUTH SECTION (Login / Register) -->
+        <section id="auth-section" class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6 mt-10">
+            <div class="text-center mb-6">
+                <h2 id="auth-title" class="text-2xl font-bold text-slate-900">Soo Dhawoow</h2>
+                <p class="text-sm text-slate-500 mt-1">Fadlan geli xogtaada si aad u gasho madasha</p>
+            </div>
+
+            <div id="auth-error" class="hidden bg-red-50 text-red-700 p-3 rounded-lg text-sm mb-4"></div>
+
+            <form id="auth-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Email-kaaga</label>
+                    <input type="email" id="auth-email" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Furaha Sirta ah (Password)</label>
+                    <input type="password" id="auth-password" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+
+                <!-- Extra fields for Registration -->
+                <div id="register-fields" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Dooro Doorkaaga (Role)</label>
+                        <select id="auth-role" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            <option value="student">Arday (Student)</option>
+                            <option value="teacher">Macallin (Teacher - Waxaa la sugayaa ansixin)</option>
+                        </select>
+                    </div>
+                    <div id="student-class-group">
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Fasalkaaga</label>
+                        <select id="auth-class" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            <option value="Form One">Form One</option>
+                            <option value="Form Two">Form Two</option>
+                            <option value="Form Three">Form Three</option>
+                            <option value="Form Four">Form Four</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" id="auth-submit-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 rounded-lg transition">Gal (Login)</button>
+            </form>
+
+            <div class="mt-6 text-center text-sm">
+                <button id="toggle-auth-mode" class="text-emerald-600 hover:underline font-medium">Ma leedahay koonto la'aan? Is-diiwaangeli</button>
+            </div>
+        </section>
+
+        <!-- DASHBOARD SECTION -->
+        <section id="dashboard-section" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center">
+                <div>
+                    <h1 id="dashboard-welcome" class="text-2xl font-bold text-slate-900">Ku Soo Dhawoow Madasha</h1>
+                    <p id="dashboard-role-badge" class="text-sm text-emerald-600 font-medium mt-1"></p>
+                </div>
+            </div>
+
+            <!-- Dynamic Dashboard Content based on Role -->
+            <div id="role-content-area" class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 min-h-[300px]">
+                <!-- Xogta ama dashboard-ka ayaa halkan ka muuqan doona -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-sm text-slate-500">
+        &copy; 2026 Bare Somali Platform. Xuquuqda ay dhowran tahay.
+    </footer>
+
+    <!-- Firebase SDKs & Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBDowDYcGxJWMrZKbUAXRgIsyYBJb8DYag",
+            authDomain: "baresomli.firebaseapp.com",
+            projectId: "baresomli",
+            storageBucket: "baresomli.firebasestorage.app",
+            messagingSenderId: "591437440341",
+            appId: "1:591437440341:web:0458b6a79455ed7dd6bbdc",
+            measurementId: "G-0VYW41SP3C"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Email-kaaga Admin-ka ah oo si toos ah loo qeexay
+        const ADMIN_EMAIL = "abdikey072@gmail.com";
+
+        // UI Elements
+        const authSection = document.getElementById('auth-section');
+        const dashboardSection = document.getElementById('dashboard-section');
+        const authForm = document.getElementById('auth-form');
+        const authTitle = document.getElementById('auth-title');
+        const authSubmitBtn = document.getElementById('auth-submit-btn');
+        const toggleAuthModeBtn = document.getElementById('toggle-auth-mode');
+        const registerFields = document.getElementById('register-fields');
+        const authError = document.getElementById('auth-error');
+        const userNav = document.getElementById('user-nav');
+        const userDisplayEmail = document.getElementById('user-display-email');
+        const logoutBtn = document.getElementById('logout-btn');
+        const dashboardWelcome = document.getElementById('dashboard-welcome');
+        const dashboardRoleBadge = document.getElementById('dashboard-role-badge');
+        const roleContentArea = document.getElementById('role-content-area');
+        const authRoleSelect = document.getElementById('auth-role');
+        const studentClassGroup = document.getElementById('student-class-group');
+
+        let isRegistering = false;
+
+        toggleAuthModeBtn.addEventListener('click', () => {
+            isRegistering = !isRegistering;
+            if (isRegistering) {
+                authTitle.textContent = "Is-diiwaangeli (Register)";
+                authSubmitBtn.textContent = "Abuur Koonto";
+                toggleAuthModeBtn.textContent = "Ma leedahay koonto? Gal (Login)";
+                registerFields.classList.remove('hidden');
+            } else {
+                authTitle.textContent = "Soo Dhawoow";
+                authSubmitBtn.textContent = "Gal (Login)";
+                toggleAuthModeBtn.textContent = "Ma leedahay koonto la'aan? Is-diiwaangeli";
+                registerFields.classList.add('hidden');
+            }
+            authError.classList.add('hidden');
+        });
+
+        authRoleSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'student') {
+                studentClassGroup.classList.remove('hidden');
+            } else {
+                studentClassGroup.classList.add('hidden');
+            }
+        });
+
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            authError.classList.add('hidden');
+
+            try {
+                if (isRegistering) {
+                    const role = authRoleSelect.value;
+                    const studentClass = document.getElementById('auth-class').value;
+                    
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    const user = userCredential.user;
+
+                    let finalRole = role;
+                    if (email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                        finalRole = 'admin';
+                    }
+
+                    const userData = {
+                        email: email,
+                        role: finalRole,
+                        createdAt: new Date().toISOString()
+                    };
+
+                    if (finalRole === 'student') {
+                        userData.studentClass = studentClass;
+                    } else if (finalRole === 'teacher') {
+                        userData.approved = false; 
+                    }
+
+                    await setDoc(doc(db, "users", user.uid), userData);
+                } else {
+                    await signInWithEmailAndPassword(auth, email, password);
+                }
+            } catch (error) {
+                authError.textContent = error.message;
+                authError.classList.remove('hidden');
+            }
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            signOut(auth);
+        });
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                authSection.classList.add('hidden');
+                dashboardSection.classList.remove('hidden');
+                userNav.classList.remove('hidden');
+                userDisplayEmail.textContent = user.email;
+
+                try {
+                    const userDocRef = doc(db, "users", user.uid);
+                    let userDocSnap = await getDoc(userDocRef);
+
+                    let userData = {};
+                    if (userDocSnap.exists()) {
+                        userData = userDocSnap.data();
+                    } else if (user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                        userData = { email: user.email, role: 'admin' };
+                        await setDoc(userDocRef, userData);
+                    }
+
+                    dashboardWelcome.textContent = `Soo dhowow, ${user.email}`;
+                    
+                    if (userData.role === 'admin' || user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                        dashboardRoleBadge.textContent = `Maamule (Admin)`;
+                        loadAdminDashboard();
+                    } else if (userData.role === 'student') {
+                        dashboardRoleBadge.textContent = `Arday - Fasalka: ${userData.studentClass || 'Form One'}`;
+                        roleContentArea.innerHTML = `<h3 class="text-lg font-semibold mb-2">Casharrada iyo Imtixaannadaada</h3><p class="text-slate-600">Halkan waxaa ka muuqan doona agabka waxbarashada ee fasalkaaga.</p>`;
+                    } else if (userData.role === 'teacher') {
+                        if (userData.approved) {
+                            dashboardRoleBadge.textContent = `Macallin (La Ansixiyay)`;
+                            roleContentArea.innerHTML = `<h3 class="text-lg font-semibold mb-2">Maareynta Koorsooyinka</h3><p class="text-slate-600">Halkan waad ku dari kartaa casharro iyo imtixaanno cusub.</p>`;
+                        } else {
+                            dashboardRoleBadge.textContent = `Macallin (Sugaya Ansixinta Maamulka)`;
+                            roleContentArea.innerHTML = `<div class="bg-yellow-50 text-yellow-800 p-4 rounded-lg">Koontadaadu waxay sugaysaa inuu maamuluhu ansixiyo kahor inta aadan bilaabin shaqada.</div>`;
+                        }
+                    }
+                } catch (err) {
+                    console.error("Error fetching user data:", err);
+                }
+
+            } else {
+                authSection.classList.remove('hidden');
+                dashboardSection.classList.add('hidden');
+                userNav.classList.add('hidden');
+                authForm.reset();
+            }
+        });
+
+        async function loadAdminDashboard() {
+            roleContentArea.innerHTML = `
+                <h3 class="text-lg font-semibold mb-4 text-slate-800">Liiska Macallimiinta Sugaya Ansixinta</h3>
+                <div id="pending-teachers-list" class="space-y-3">
+                    <p class="text-slate-500 text-sm">Xogta ayaa soo socota...</p>
+                </div>
+            `;
+
+            try {
+                const querySnapshot = await getDocs(collection(db, "users"));
+                const listContainer = document.getElementById('pending-teachers-list');
+                let teachersHTML = '';
+
+                querySnapshot.forEach((docSnap) => {
+                    const uData = docSnap.data();
+                    const uId = docSnap.id;
+                    if (uData.role === 'teacher' && !uData.approved) {
+                        teachersHTML += `
+                            <div class="flex justify-between items-center p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                                <div>
+                                    <p class="font-medium text-slate-800">${uData.email}</p>
+                                    <span class="text-xs text-yellow-600 font-semibold">Sugaya Ansixin</span>
+                                </div>
+                                <button onclick="approveTeacher('${uId}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-sm transition">Ansixi (Approve)</button>
+                            </div>
+                        `;
+                    }
+                });
+
+                if (!teachersHTML) {
+                    teachersHTML = `<p class="text-slate-500 text-sm">Ma jiraan macallimiin sugaya ansixin hadda.</p>`;
+                }
+                listContainer.innerHTML = teachersHTML;
+            } catch (error) {
+                console.error("Error loading teachers:", error);
+            }
+        }
+
+        window.approveTeacher = async function(userId) {
+            try {
+                await updateDoc(doc(db, "users", userId), { approved: true });
+                alert("Waa la ansixiyay macallinkii si guul leh!");
+                loadAdminDashboard();
+            } catch (error) {
+                alert("Cillad ayaa dhacday: " + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
